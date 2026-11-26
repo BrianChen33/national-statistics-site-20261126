@@ -2,11 +2,18 @@
 //
 // Routes (all hashes, so the whole site is one file load and every page is
 // a link): #/ overview, #/topics, #/topic/<slug>, #/explorer with an
-// optional /<id> and ?q=&sort=&topic=, #/sources. Unknown routes get a
-// plain "not found" page with a way home — never a blank screen.
+// optional /<id> and ?q=&sort=&topic=, #/sources with an optional
+// #source-N anchor. Unknown routes get a plain "not found" page with a
+// way home — never a blank screen.
 //
 // window.__shotReady is false while a page renders and true once it is on
 // screen, so a screenshot script knows when to capture.
+
+// Decode one URI component without ever throwing: a malformed escape
+// becomes an empty string instead of a blank page.
+function safeDecode(s) {
+  try { return decodeURIComponent(s); } catch (e) { return ""; }
+}
 
 var app = document.getElementById("app");
 var navLinks = Array.prototype.slice.call(document.querySelectorAll("[data-nav]"));
@@ -16,12 +23,13 @@ function currentRoute() {
   if (hash === "#/" || hash === "#") return { view: "overview" };
   var m = hash.match(/^#\/topics$/);
   if (m) return { view: "topics" };
-  m = hash.match(/^#\/topic\/([^/?]+)/);
-  if (m) return { view: "topic", slug: decodeURIComponent(m[1]) };
-  m = hash.match(/^#\/sources$/);
-  if (m) return { view: "sources" };
+  m = hash.match(/^#\/topic\/([^/?#]+)$/);
+  if (m) return { view: "topic", slug: safeDecode(m[1]) };
+  m = hash.match(/^#\/sources(?:#(source-\d+))?$/);
+  if (m) return { view: "sources", anchor: m[1] || "" };
   if (hash.indexOf("#/explorer") === 0) {
     var parsed = parseExplorerHash(hash);
+    if (!parsed) return { view: "missing" };
     return { view: parsed.id ? "series" : "explorer", id: parsed.id, state: parsed };
   }
   return { view: "missing" };
@@ -60,7 +68,17 @@ function render() {
   }
   app.innerHTML = html;
   markNav(r.view);
-  window.scrollTo(0, 0);
+  var h1 = app.querySelector("h1");
+  if (h1) {
+    h1.setAttribute("tabindex", "-1");
+    h1.focus({ preventScroll: true });
+  }
+  if (r.view === "sources" && r.anchor) {
+    var el = document.getElementById(r.anchor);
+    if (el) el.scrollIntoView(); else window.scrollTo(0, 0);
+  } else {
+    window.scrollTo(0, 0);
+  }
   window.__shotReady = true;
 }
 
@@ -87,24 +105,41 @@ document.addEventListener("click", function (ev) {
   if (copy) {
     var text = copy.getAttribute("data-copy");
     var done = function () { copy.textContent = "Copied"; setTimeout(function () { copy.textContent = "Copy link"; }, 1500); };
+    var failed = function () {
+      // Both clipboard paths failed: show the address in a visible field
+      // with the text selected, so it can still be copied by hand, and
+      // say so on the button instead of claiming success.
+      var input = document.createElement("input");
+      input.type = "text"; input.readOnly = true; input.value = text;
+      input.className = "copy-fallback";
+      copy.parentElement.insertBefore(input, copy.nextSibling);
+      input.focus(); input.select();
+      copy.textContent = "Copy failed";
+    };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
-    } else { fallbackCopy(text); done(); }
+      navigator.clipboard.writeText(text).then(done, function () { if (fallbackCopy(text)) done(); else failed(); });
+    } else if (fallbackCopy(text)) { done(); } else { failed(); }
   }
 });
 
+// Best-effort copy for browsers without the async clipboard API. Returns
+// whether the copy command reported success.
 function fallbackCopy(text) {
   var ta = document.createElement("textarea");
   ta.value = text; ta.setAttribute("readonly", "");
   ta.style.position = "absolute"; ta.style.left = "-9999px";
   document.body.appendChild(ta); ta.select();
-  try { document.execCommand("copy"); } catch (e) { /* clipboard unavailable */ }
+  var ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { /* clipboard unavailable */ }
   document.body.removeChild(ta);
+  return !!ok;
 }
 
 // The explorer's search filters the list as you type, without moving the
 // page or losing the cursor; sort and topic jump through the address so a
-// reload keeps them.
+// reload keeps them. Typing updates the address without adding a history
+// step, and committing the search (Enter, or leaving the field) records
+// one step, so Back returns to the search you came from.
 document.addEventListener("input", function (ev) {
   if (ev.target && ev.target.id === "explorer-q") {
     EXPLORER_STATE.q = ev.target.value;
@@ -116,11 +151,16 @@ document.addEventListener("input", function (ev) {
         : '<p class="empty">No indicator matches. Try a shorter word, for example “trade” or “income”.</p>';
     }
     if (count) count.textContent = rows.length + " indicator" + (rows.length === 1 ? "" : "s");
+    history.replaceState(null, "", explorerHash(currentRoute().id || "", EXPLORER_STATE));
   }
 });
 
 document.addEventListener("change", function (ev) {
   if (!ev.target) return;
+  if (ev.target.id === "explorer-q") {
+    history.pushState(null, "", explorerHash(currentRoute().id || "", EXPLORER_STATE));
+    return;
+  }
   if (ev.target.id === "explorer-sort" || ev.target.id === "explorer-topic") {
     var id = currentRoute().id || "";
     if (ev.target.id === "explorer-sort") EXPLORER_STATE.sort = ev.target.value;
