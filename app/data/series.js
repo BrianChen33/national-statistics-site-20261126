@@ -2,15 +2,16 @@
 //
 // Every figure on this site comes from one entry here: a short id, the exact
 // wording the site shows, the unit, the observations, and the source it was
-// taken from (an index into SOURCES in data/sources.js). Nothing on the site
-// shows a number that is not listed here, and every chart, card and table
-// reads from this one list, so the same value, period and wording follow an
-// indicator from the home page into its chart and its table.
+// taken from (an index into SOURCES in data/sources.js). Charts, cards and
+// tables all read from this one list, so the same value, period and wording
+// follow an indicator from the home page into its chart and its table.
 //
 // Years are the observation years. "latest" is the most recent observation
-// in values. Single-figure indicators carry one observation; two-point
-// indicators (for example the ageing share) carry exactly the two published
-// endpoints, never an invented line between them.
+// in values. Where a source publishes only some years, the chart joins the
+// published observations in time order on a true time axis; no value is
+// invented for a year the source does not publish. Single-figure
+// indicators carry one observation. A series marked categories: true has
+// one observation year and a value per category, not a value per year.
 
 const SERIES = [
   {
@@ -19,19 +20,9 @@ const SERIES = [
     topic: "population",
     unit: "thousand people",
     shortUnit: "thousand",
-    values: [[2020, 5685.8], [2021, 5453.6], [2022, 5637.0], [2023, 5917.6], [2024, 6036.9]],
-    source: 1,
-    note: "Mid-year total population. The 2021 dip is the pandemic outflow; the population passed 6 million in 2024."
-  },
-  {
-    id: "population-2026",
-    name: "Total population, end-June 2026",
-    topic: "population",
-    unit: "million people",
-    shortUnit: "million",
-    values: [[2026, 6.21]],
+    values: [[2020, 5685.8], [2021, 5453.6], [2022, 5637.0], [2023, 5917.6], [2024, 6036.9], [2025, 6111.2], [2026, 6208.5]],
     source: 0,
-    note: "Up 1.6% on end-June 2025. The resident population was 4.23 million, up 0.6%."
+    note: "Mid-year (end-June) total population. The 2021 dip reflects the fall in the non-resident population during the pandemic; the population passed 6 million in 2024 and reached 6.21 million at end-June 2026."
   },
   {
     id: "residents-65-plus",
@@ -39,9 +30,9 @@ const SERIES = [
     topic: "population",
     unit: "% of resident population",
     shortUnit: "%",
-    values: [[2016, 12.4], [2026, 19.5]],
+    values: [[2016, 12.4], [2020, 15.2], [2022, 16.6], [2023, 17.3], [2024, 18.0], [2025, 18.8], [2026, 19.5]],
     source: 0,
-    note: "Nearly 1 in 5 residents was 65 or older in 2026, up 7.1 percentage points in a decade. Among citizens the share was 21.4% in 2026, making Singapore a super-aged society."
+    note: "Selected published observations; no value is shown for a year the source does not publish. Nearly 1 in 5 residents was 65 or older in 2026, up 7.1 percentage points in a decade. Among citizens the share was 21.4% in 2026, making Singapore a super-aged society."
   },
   {
     id: "median-age",
@@ -49,19 +40,19 @@ const SERIES = [
     topic: "population",
     unit: "years",
     shortUnit: "years",
-    values: [[2026, 43.6]],
+    values: [[2020, 41.5], [2025, 43.2], [2026, 43.6]],
     source: 0,
     note: "The median age of citizens was 44.1 years in June 2026."
   },
   {
     id: "fertility-rate",
-    name: "Total fertility rate",
+    name: "Resident total fertility rate",
     topic: "population",
     unit: "births per woman",
-    shortUnit: "",
-    values: [[2024, 0.97]],
-    source: 2,
-    note: "Resident total fertility rate. It has been below the replacement level of 2.1 since 1977."
+    shortUnit: "births/woman",
+    values: [[2023, 0.97], [2024, 0.97], [2025, 0.87]],
+    source: 0,
+    note: "Resident total fertility rate — births per woman among residents. It has been below the replacement level of 2.1 since 1977. The 2025 figure, 0.87, is the lowest on record."
   },
   {
     id: "gdp-growth",
@@ -69,9 +60,9 @@ const SERIES = [
     topic: "economy",
     unit: "% change on a year earlier",
     shortUnit: "%",
-    values: [[2020, -3.8], [2021, 9.8], [2022, 4.1], [2023, 1.8], [2024, 4.4]],
-    source: 1,
-    note: "Annual change in GDP at constant prices. The 2020 fall is the pandemic contraction; 2021 is the rebound."
+    values: [[2020, -3.6], [2021, 10.1], [2022, 4.0], [2023, 1.5], [2024, 5.3], [2025, 5.0]],
+    source: 6,
+    note: "Annual change in GDP at constant prices (World Bank). The 2024 figure was revised up from 4.4% to 5.3% and 2023 down from 1.8% to 1.5% in the Economic Survey of Singapore 2025. The 2020 fall is the pandemic contraction; 2021 is the rebound."
   },
   {
     id: "gdp-current",
@@ -79,9 +70,9 @@ const SERIES = [
     topic: "economy",
     unit: "US$ billion",
     shortUnit: "US$ bn",
-    values: [[2024, 547.4]],
-    source: 2,
-    note: "Nominal GDP in current US dollars."
+    values: [[2024, 572.9], [2025, 603.9]],
+    source: 6,
+    note: "Nominal GDP in current US dollars (World Bank)."
   },
   {
     id: "gdp-per-capita",
@@ -89,9 +80,9 @@ const SERIES = [
     topic: "economy",
     unit: "US$",
     shortUnit: "US$",
-    values: [[2024, 90674]],
-    source: 2,
-    note: "Nominal GDP divided by the total population."
+    values: [[2024, 94897], [2025, 98814]],
+    source: 6,
+    note: "Nominal GDP divided by the total population (World Bank)."
   },
   {
     id: "gdp-constant",
@@ -99,39 +90,40 @@ const SERIES = [
     topic: "economy",
     unit: "US$ billion",
     shortUnit: "US$ bn",
-    values: [[2020, 336.5], [2021, 369.4], [2022, 384.6], [2023, 391.6], [2024, 408.7]],
-    source: 1,
-    note: "GDP in constant 2015 prices, for comparing the size of the economy across years."
+    values: [[2020, 335.9], [2021, 370.0], [2022, 384.8], [2023, 390.4], [2024, 411.3], [2025, 432.0]],
+    source: 6,
+    note: "GDP in constant 2015 prices, for comparing the size of the economy across years (World Bank)."
   },
   {
     id: "gva-services",
-    name: "Services share of gross value added",
+    name: "Services value added, % of GDP",
     topic: "economy",
     unit: "% of GDP",
     shortUnit: "%",
-    values: [[2020, 72.1], [2021, 70.2], [2022, 71.6], [2023, 72.7], [2024, 73.0]],
-    source: 1,
-    note: "Services dominate value added; industry was 21.4% and agriculture 0.0% in 2024."
+    decimals: 1,
+    values: [[2020, 72.2], [2021, 70.3], [2022, 71.6], [2023, 72.8], [2024, 73.1], [2025, 71.6]],
+    source: 6,
+    note: "Services value added as a share of GDP (World Bank). Industry was 21.5% and agriculture 0.03% in 2024."
   },
   {
     id: "gva-industry",
-    name: "Industry share of gross value added",
+    name: "Industry value added, % of GDP",
     topic: "economy",
     unit: "% of GDP",
     shortUnit: "%",
-    values: [[2020, 23.2], [2021, 24.6], [2022, 23.8], [2023, 22.1], [2024, 21.4]],
-    source: 1,
-    note: "Industry, including manufacturing, was 21.4% of gross value added in 2024."
+    values: [[2020, 23.2], [2021, 24.6], [2022, 23.8], [2023, 22.1], [2024, 21.5], [2025, 22.7]],
+    source: 6,
+    note: "Industry value added as a share of GDP (World Bank), including manufacturing. Services were 73.1% in 2024."
   },
   {
     id: "unemployment",
-    name: "Unemployment rate",
+    name: "Unemployment rate (ILO modelled)",
     topic: "labour",
     unit: "% of total labour force (ILO modelled estimate)",
     shortUnit: "%",
-    values: [[2020, 4.1], [2021, 4.6], [2022, 3.6], [2023, 3.4], [2024, 3.2]],
-    source: 1,
-    note: "Share of the total labour force without work but available and seeking it, on the ILO modelled definition. The Ministry of Manpower's own overall rate (seasonally adjusted) was 2.0% in September 2026; the two are not the same measure."
+    values: [[2020, 4.1], [2021, 4.6], [2022, 3.6], [2023, 3.4], [2024, 2.7], [2025, 2.8]],
+    source: 6,
+    note: "Share of the total labour force without work but available and seeking it, on the ILO modelled definition (World Bank). The Ministry of Manpower's own annual overall rate was 2.0% in both 2024 and 2025; the two are not the same measure."
   },
   {
     id: "labour-force",
@@ -141,7 +133,7 @@ const SERIES = [
     shortUnit: "thousand",
     values: [[2024, 3596]],
     source: 2,
-    note: "Resident and non-resident workers together, 2024."
+    note: "People in work plus people seeking work, resident and non-resident together, 2024."
   },
   {
     id: "labour-participation",
@@ -155,13 +147,13 @@ const SERIES = [
   },
   {
     id: "youth-unemployment",
-    name: "Youth unemployment rate",
+    name: "Youth unemployment rate (ILO modelled, ages 15–24)",
     topic: "labour",
-    unit: "% of the youth labour force",
+    unit: "% of the youth labour force (ILO modelled estimate)",
     shortUnit: "%",
-    values: [[2024, 7.8]],
-    source: 2,
-    note: "Unemployed people aged 15 to 24 as a share of the youth labour force, 2024."
+    values: [[2020, 10.6], [2021, 9.5], [2022, 7.9], [2023, 8.5], [2024, 6.3], [2025, 6.8]],
+    source: 6,
+    note: "Unemployed people aged 15 to 24 as a share of the youth labour force, ILO modelled (World Bank)."
   },
   {
     id: "cpi-inflation",
@@ -169,9 +161,9 @@ const SERIES = [
     topic: "prices",
     unit: "% change on a year earlier",
     shortUnit: "%",
-    values: [[2020, -0.2], [2021, 2.3], [2022, 6.1], [2023, 4.8], [2024, 2.4]],
-    source: 1,
-    note: "Annual change in the all-items consumer price index. Inflation peaked at 6.1% in 2022 and eased to 2.4% in 2024."
+    values: [[2020, -0.2], [2021, 2.3], [2022, 6.1], [2023, 4.8], [2024, 2.4], [2025, 0.9]],
+    source: 6,
+    note: "Annual change in the all-items consumer price index (World Bank). Inflation peaked at 6.1% in 2022 and eased to 0.9% in 2025."
   },
   {
     id: "exports-goods",
@@ -219,9 +211,9 @@ const SERIES = [
     topic: "trade",
     unit: "% of GDP",
     shortUnit: "%",
-    values: [[2024, 178.8]],
-    source: 2,
-    note: "Exports of goods and services were worth 178.8% of GDP in 2024: Singapore trades far more than it produces, because so much of what it exports was first imported."
+    values: [[2024, 174.7], [2025, 177.9]],
+    source: 6,
+    note: "Gross exports of goods and services divided by GDP (World Bank). The ratio alone cannot say how much was re-exported."
   },
   {
     id: "household-income",
@@ -231,7 +223,7 @@ const SERIES = [
     shortUnit: "S$",
     values: [[2024, 11297]],
     source: 3,
-    note: "Resident employed households, 2024, up from S$10,869 in 2023 (+1.4% in real terms). Per household member the median was S$3,615."
+    note: "Resident employed households, 2024 release. Up from S$10,869 in 2023 (+1.4% in real terms). Per household member the median was S$3,615."
   },
   {
     id: "income-by-dwelling",
@@ -241,18 +233,19 @@ const SERIES = [
     shortUnit: "S$",
     values: [["1- & 2-room HDB flat", 4084], ["3-room HDB flat", 8094], ["4-room HDB flat", 11676], ["5-room & executive HDB flat", 15180], ["Condominiums & apartments", 23366], ["Landed properties", 30050]],
     source: 3,
-    note: "Average (not median) monthly household income from work by type of dwelling, 2024. The overall average was S$14,570.",
+    year: 2024,
+    note: "Average (not median) monthly household income from work by type of dwelling, 2024, among resident employed households. Income from work includes employer CPF contributions. The overall average was S$14,570.",
     categories: true
   },
   {
     id: "gini",
-    name: "Gini coefficient",
+    name: "Gini coefficient (household income from work)",
     topic: "housing",
     unit: "index, 0 to 1",
-    shortUnit: "",
+    shortUnit: "index",
     values: [[2024, 0.435]],
     source: 3,
-    note: "Income inequality before government transfers and taxes, 2024. After transfers and taxes it was 0.364, the lowest since records began in 2000."
+    note: "Among resident employed households, per household member, before government transfers and taxes, 2024. After transfers and taxes it was 0.364, the lowest since records began in 2000."
   },
   {
     id: "hdb-share",
@@ -260,9 +253,10 @@ const SERIES = [
     topic: "housing",
     unit: "million residents",
     shortUnit: "million",
+    decimals: 2,
     values: [[2026, 3.20]],
     source: 0,
-    note: "An estimated 3.20 million residents, about 3 in 4, lived in Housing & Development Board flats in 2026. Nearly 8 in 10 resident households live in HDB flats."
+    note: "An estimated 3.20 million residents, about 3 in 4, lived in Housing & Development Board flats at end-June 2026. 77.2% of resident households lived in HDB flats in 2025."
   },
   {
     id: "home-ownership",
@@ -270,7 +264,7 @@ const SERIES = [
     topic: "housing",
     unit: "% of resident households",
     shortUnit: "%",
-    values: [[2025, 91.2]],
+    values: [[2020, 87.9], [2025, 91.2]],
     source: 4,
     note: "Resident households owning their home, 2025, up from 87.9% in 2020 (General Household Survey 2025)."
   },
@@ -280,9 +274,9 @@ const SERIES = [
     topic: "health",
     unit: "years",
     shortUnit: "years",
-    values: [[2024, 83.5]],
+    values: [[2015, 82.9], [2019, 83.7], [2020, 83.7], [2021, 83.2], [2022, 83.0], [2023, 83.2], [2024, 83.7], [2025, 83.9]],
     source: 5,
-    note: "Resident life expectancy at birth, 2024: 83.5 years (men 81.2, women 85.6), up from 83.2 in 2023 and 82.6 in 2014."
+    note: "Resident life expectancy at birth (Complete Life Tables 2024–2025). 2025 is preliminary: 83.9 years overall (men 81.8, women 86.0), up from 83.7 in 2024 (men 81.5, women 85.8) and 83.2 in 2023."
   },
   {
     id: "infant-mortality",
@@ -310,9 +304,9 @@ const SERIES = [
     topic: "education",
     unit: "% of residents aged 25 and over",
     shortUnit: "%",
-    values: [[2025, 64.8]],
+    values: [[2020, 58.3], [2025, 64.8]],
     source: 4,
-    note: "Residents aged 25 and over with post-secondary or higher qualifications, 2025, up from 58.3% in 2020 (General Household Survey 2025)."
+    note: "Residents aged 25 and over with post-secondary or higher qualifications, 2025, up from 58.3% in 2020 (General Household Survey 2025). The figures exclude full-time students."
   },
   {
     id: "education-spending",
@@ -340,9 +334,9 @@ const SERIES = [
     topic: "environment",
     unit: "square kilometres",
     shortUnit: "km²",
-    values: [[2024, 736]],
+    values: [[2024, 724.8]],
     source: 6,
-    note: "Total land area, 2024. Population density was 8,329 people per square kilometre."
+    note: "Land area (World Bank indicator AG.LND.TOTL.K2), 2024. Surface area, which includes inland water, was 735.6 km². Population density was 8,329 people per km² of land."
   },
   {
     id: "internet-users",
@@ -352,7 +346,27 @@ const SERIES = [
     shortUnit: "per 100",
     values: [[2024, 94.4]],
     source: 2,
-    note: "People using the internet per 100 people, 2024. Mobile cellular subscriptions were 170.8 per 100 people and fixed broadband subscriptions 27.8 per 100."
+    note: "People using the internet per 100 people, 2024."
+  },
+  {
+    id: "mobile-subscriptions",
+    name: "Mobile cellular subscriptions",
+    topic: "environment",
+    unit: "per 100 people",
+    shortUnit: "per 100",
+    values: [[2024, 170.8]],
+    source: 2,
+    note: "Mobile cellular subscriptions per 100 people, 2024."
+  },
+  {
+    id: "fixed-broadband",
+    name: "Fixed broadband subscriptions",
+    topic: "environment",
+    unit: "per 100 people",
+    shortUnit: "per 100",
+    values: [[2024, 27.8]],
+    source: 2,
+    note: "Fixed broadband subscriptions per 100 people, 2024."
   },
   {
     id: "ethnic-chinese",
@@ -366,8 +380,14 @@ const SERIES = [
   }
 ];
 
-// Latest observation of a series: [year, value].
+// Latest observation of a series: [year, value]. For a categorical series
+// the year is the observation year and the value is the largest category;
+// a third element carries that category's label.
 function latestOf(entry) {
+  if (entry.categories) {
+    var best = entry.values.reduce(function (a, b) { return b[1] > a[1] ? b : a; });
+    return [entry.year, best[1], best[0]];
+  }
   return entry.values[entry.values.length - 1];
 }
 
@@ -381,7 +401,19 @@ function seriesById(id) {
   return SERIES.find(function (s) { return s.id === id; });
 }
 
+// The topic page a record belongs to: health and education records share
+// the combined "health-education" topic page.
+function topicSlugFor(entry) {
+  return entry.topic === "health" || entry.topic === "education" ? "health-education" : entry.topic;
+}
+
+function topicMatches(entry, slug) {
+  return slug === "health-education"
+    ? (entry.topic === "health" || entry.topic === "education")
+    : entry.topic === slug;
+}
+
 // All indicators of one topic, in catalogue order.
 function seriesOfTopic(topic) {
-  return SERIES.filter(function (s) { return s.topic === topic; });
+  return SERIES.filter(function (s) { return topicMatches(s, topic); });
 }
