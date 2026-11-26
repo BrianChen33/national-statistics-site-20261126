@@ -9,17 +9,24 @@
 
 var EXPLORER_STATE = { q: "", sort: "name", topic: "all" };
 
+// Decode one URI component without ever throwing: a malformed escape
+// becomes an empty string instead of a blank page.
+function safeDecode(s) {
+  try { return decodeURIComponent(s); } catch (e) { return ""; }
+}
+
 // Parse the explorer's part of the address: #/explorer, #/explorer/<id>,
-// each optionally with ?q=...&sort=...&topic=...
+// each optionally with ?q=...&sort=...&topic=... Returns null when the
+// address is not an explorer address at all.
 function parseExplorerHash(hash) {
+  var m = hash.match(/^#\/explorer(?:\/([^?#]+))?(?:\?([^#]*))?$/);
+  if (!m) return null;
   var out = { id: "", q: "", sort: "name", topic: "all" };
-  var m = hash.match(/^#\/explorer(?:\/([^?]+))?(?:\?(.*))?$/);
-  if (!m) return out;
-  if (m[1]) out.id = decodeURIComponent(m[1]);
+  if (m[1]) out.id = safeDecode(m[1]);
   if (m[2]) {
     m[2].split("&").forEach(function (pair) {
       var kv = pair.split("=");
-      if (kv[0] === "q") out.q = decodeURIComponent(kv[1] || "").replace(/\+/g, " ");
+      if (kv[0] === "q") out.q = safeDecode(kv[1] || "");
       if (kv[0] === "sort") out.sort = kv[1] || "name";
       if (kv[0] === "topic") out.topic = kv[1] || "all";
     });
@@ -39,13 +46,19 @@ function explorerHash(id, state) {
 function explorerRows(state) {
   var q = state.q.trim().toLowerCase();
   var rows = SERIES.filter(function (s) {
-    if (state.topic !== "all" && s.topic !== state.topic) return false;
+    if (state.topic !== "all" && !topicMatches(s, state.topic)) return false;
     if (!q) return true;
     var hay = (s.name + " " + s.topic + " " + s.unit).toLowerCase();
     return q.split(/\s+/).every(function (w) { return hay.indexOf(w) !== -1; });
   });
   if (state.sort === "value") {
-    rows = rows.slice().sort(function (a, b) { return latestOf(b)[1] - latestOf(a)[1]; });
+    // Values in different units cannot share one ranking, so rows are
+    // grouped by unit and ranked highest first inside each group.
+    rows = rows.slice().sort(function (a, b) {
+      if (a.shortUnit < b.shortUnit) return -1;
+      if (a.shortUnit > b.shortUnit) return 1;
+      return latestOf(b)[1] - latestOf(a)[1];
+    });
   } else if (state.sort === "year") {
     rows = rows.slice().sort(function (a, b) { return latestOf(b)[0] - latestOf(a)[0] || a.name.localeCompare(b.name); });
   } else {
@@ -56,11 +69,11 @@ function explorerRows(state) {
 
 function explorerRowHtml(s, state) {
   var last = latestOf(s);
-  var t = topicBySlug(s.topic);
+  var t = topicBySlug(topicSlugFor(s));
   return '<a class="explorer-row" href="' + explorerHash(s.id, state) + '">' +
     '<span class="explorer-name">' + esc(s.name) + '</span>' +
     '<span class="explorer-topic">' + esc(t ? t.title : s.topic) + '</span>' +
-    '<span class="explorer-value">' + fmtValue(last[1]) + ' <span class="stat-unit">' + esc(s.shortUnit) + '</span></span>' +
+    '<span class="explorer-value">' + esc(fmtAmount(s, last[1])) + '</span>' +
     '<span class="explorer-year">' + last[0] + '</span></a>';
 }
 
@@ -74,7 +87,7 @@ function renderExplorer(state) {
   var list = rows.length ? rows.map(function (s) { return explorerRowHtml(s, EXPLORER_STATE); }).join("")
     : '<p class="empty">No indicator matches. Try a shorter word, for example “trade” or “income”.</p>';
   return '<h1>Data explorer</h1>' +
-    '<p class="lede">Every indicator on this site — ' + SERIES.length + ' in all — with its latest value, unit and source. Choose one to see its full series.</p>' +
+    '<p class="lede">Every indicator on this site — ' + SERIES.length + ' in all — with its latest value, unit and source. Choose one to see its observations, chart and source.</p>' +
     '<div class="explorer-controls">' +
     '<label>Search <input id="explorer-q" type="search" value="' + esc(state.q) + '" placeholder="Try “unemployment”" autocomplete="off"></label>' +
     '<label>Topic <select id="explorer-topic">' + topicOptions + '</select></label>' +
@@ -94,26 +107,32 @@ function renderSeriesDetail(id, state) {
   if (!s) {
     return '<h1>Indicator not found</h1><p>There is no indicator at this address. <a href="#/explorer">Browse all indicators</a>.</p>';
   }
-  var t = topicBySlug(s.topic);
+  var t = topicBySlug(topicSlugFor(s));
   var last = latestOf(s);
   var src = SOURCES[s.source];
   var body;
   if (s.categories) {
-    body = chartPanel("series-" + s.id, hbarChart(s.values, { decimals: 0, labelWidth: 215 }), valueTable(s), s.name);
+    body = chartPanel("series-" + s.id, hbarChart(s.values, { decimals: 0, label: s.name }), valueTable(s), s.name);
   } else if (s.values.length > 1) {
-    body = chartPanel("series-" + s.id, lineChart(s, { decimals: 1 }), valueTable(s), s.name);
+    body = chartPanel("series-" + s.id, lineChart(s, { decimals: 1, label: s.name + " chart" }), valueTable(s), s.name);
   } else {
-    body = '<p class="big-stat"><span class="stat-value">' + fmtValue(last[1]) + ' <span class="stat-unit">' + esc(s.shortUnit) + '</span></span>' +
+    body = '<p class="big-stat"><span class="stat-value">' + esc(fmtAmount(s, last[1])) + '</span>' +
       '<span class="stat-name">' + esc(s.unit) + ', ' + last[0] + '</span></p>' + valueTable(s);
   }
-  return '<p class="crumb"><a href="' + explorerHash("", state) + '">&larr; Data explorer</a> · <a href="#/topic/' + s.topic + '">' + esc(t ? t.title : s.topic) + '</a></p>' +
+  var lede;
+  if (s.categories) {
+    lede = '<p class="lede">' + s.values.length + ' dwelling types · ' + last[0] + '. Highest: <strong>' + esc(fmtAmount(s, last[1])) + '</strong> (' + esc(last[2]) + ').</p>';
+  } else {
+    lede = '<p class="lede">Latest: <strong>' + esc(fmtAmount(s, last[1])) + '</strong> in ' + last[0] + ' (' + esc(s.unit) + ').</p>';
+  }
+  return '<p class="crumb"><a href="' + explorerHash("", state) + '">&larr; Data explorer</a> · <a href="#/topic/' + topicSlugFor(s) + '">' + esc(t ? t.title : s.topic) + '</a></p>' +
     '<h1>' + esc(s.name) + '</h1>' +
-    '<p class="lede">Latest: <strong>' + fmtValue(last[1]) + ' ' + esc(s.shortUnit) + '</strong> in ' + last[0] + ' (' + esc(s.unit) + ').</p>' +
+    lede +
     body +
     '<p class="note">' + esc(s.note) + '</p>' +
     '<section class="source-record"><h2>Source</h2>' +
     '<p><strong>' + esc(src.agency) + '</strong> — ' + esc(src.title) + '.</p>' +
     '<p>' + esc(src.detail) + '</p>' +
     (src.url ? '<p>Original: <span class="url-text">' + esc(src.url) + '</span> <button type="button" class="copy-btn" data-copy="' + esc(src.url) + '">Copy link</button></p>' : '<p>No verified original address is listed for this source; it is cited by agency and publication.</p>') +
-    '<p class="source">Retrieved ' + esc(src.retrieved) + '.</p></section>';
+    '<p class="source">Retrieved ' + esc(src.retrieved) + '. <a href="#/sources#source-' + s.source + '">See this source in the directory</a>.</p></section>';
 }
