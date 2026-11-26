@@ -27,9 +27,21 @@ function decimalsOf(v) {
   return i === -1 ? 0 : Math.min(s.length - i - 1, 3);
 }
 
-// Format a value exactly as published.
-function fmtValue(v) {
-  return fmtNum(v, decimalsOf(v));
+// Format a value exactly as published. `decimals` overrides the decimals
+// the value itself carries, so a stored 3.2 can print as the published 3.20.
+function fmtValue(v, decimals) {
+  return fmtNum(v, decimals === undefined ? decimalsOf(v) : decimals);
+}
+
+// The value as the site shows it on a card or a list row: currency units
+// go before the number (S$11,297, US$547.4 bn), other units after it.
+function fmtAmount(entry, v) {
+  var num = fmtValue(v, entry.decimals);
+  var u = entry.shortUnit || "";
+  if (u.indexOf("US$") === 0) return "US$" + num + u.slice(3);
+  if (u === "S$") return "S$" + num;
+  if (u === "%") return num + "%";
+  return num + (u ? " " + u : "");
 }
 
 // Format a number with thousands separators and a chosen precision.
@@ -49,20 +61,28 @@ function niceStep(range, target) {
   return (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
 }
 
-// A line chart for one year series: points joined in order, each labelled.
-// opts: {height, color, decimals, ymin} — ymin defaults to a padded min so
-// small changes stay visible; pass ymin 0 to anchor at zero.
+// A line chart for one year series: points joined in time order, each
+// labelled. Points sit on a true time axis, so a series that publishes
+// only some years (2016, 2020, 2022–2026) shows the real gaps between
+// them instead of even spacing. opts: {height, color, decimals, ymin,
+// label} — ymin defaults to a padded min so small changes stay visible;
+// pass ymin 0 to anchor at zero.
 function lineChart(entry, opts) {
   var o = opts || {};
   var W = 640, H = o.height || 210, padL = 46, padR = 14, padT = 26, padB = 30;
   var pts = entry.values;
   var vals = pts.map(function (p) { return p[1]; });
+  var years = pts.map(function (p) { return p[0]; });
+  var minYear = Math.min.apply(null, years), maxYear = Math.max.apply(null, years);
   var lo = o.ymin !== undefined ? o.ymin : Math.min.apply(null, vals);
   var hi = Math.max.apply(null, vals);
   if (hi === lo) { hi = lo + 1; }
   var span = hi - lo, pad = span * 0.12;
   lo -= pad; hi += pad;
-  function X(i) { return padL + (i * (W - padL - padR)) / Math.max(pts.length - 1, 1); }
+  function X(i) {
+    if (maxYear === minYear) return W / 2;
+    return padL + ((pts[i][0] - minYear) / (maxYear - minYear)) * (W - padL - padR);
+  }
   function Y(v) { return padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB); }
   var grid = "";
   var step = niceStep(hi - lo, 3);
@@ -79,7 +99,7 @@ function lineChart(entry, opts) {
       '<text x="' + X(i).toFixed(1) + '" y="' + (Y(p[1]) + (labelAbove ? -10 : 20)).toFixed(1) + '" font-size="12" font-weight="700" fill="' + CHART_TEXT + '" text-anchor="middle">' + fmtNum(p[1], o.decimals) + '</text>' +
       '<text x="' + X(i).toFixed(1) + '" y="' + (H - 8) + '" font-size="11" fill="' + CHART_GREY + '" text-anchor="middle">' + p[0] + '</text>';
   }).join("");
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(entry.name) + ' chart" style="width:100%;height:auto;display:block">' +
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.label || entry.name + ' chart') + '" style="width:100%;height:auto;display:block">' +
     grid +
     '<line x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '" stroke="#9fb0bf" stroke-width="1"/>' +
     '<path d="' + line + '" fill="none" stroke="' + (o.color || CHART_RED) + '" stroke-width="2.5" stroke-linejoin="round"/>' +
@@ -119,26 +139,27 @@ function groupBarChart(a, b, opts) {
   var legend = '<g font-size="12" fill="' + CHART_TEXT + '">' +
     '<rect x="' + padL + '" y="4" width="12" height="12" fill="' + (o.colors ? o.colors[0] : CHART_RED) + '"/><text x="' + (padL + 17) + '" y="14">' + esc(o.labels ? o.labels[0] : a.name) + '</text>' +
     '<rect x="' + (padL + 210) + '" y="4" width="12" height="12" fill="' + (o.colors ? o.colors[1] : CHART_GREY) + '"/><text x="' + (padL + 227) + '" y="14">' + esc(o.labels ? o.labels[1] : b.name) + '</text></g>';
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Comparison chart" style="width:100%;height:auto;display:block">' +
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.label || (a.name + " against " + b.name)) + '" style="width:100%;height:auto;display:block">' +
     grid +
     '<line x1="' + padL + '" y1="' + (H - padB) + '" x2="' + (W - padR) + '" y2="' + (H - padB) + '" stroke="#9fb0bf" stroke-width="1"/>' +
     bars + legend + '</svg>';
 }
 
-// Horizontal bars for category rows: [[label, value], ...]. The value is
-// printed at the end of each bar; the longest label sets the label column.
+// Horizontal bars for category rows: [[label, value], ...]. Rendered as
+// plain HTML, not SVG, so the labels stay legible on a phone: each row is
+// a label, a bar and a value, and on a narrow screen the label and the
+// amount sit above the bar instead of beside it (see style.css .hbar-*).
+// The value is printed at the end of each bar.
 function hbarChart(rows, opts) {
   var o = opts || {};
-  var W = 640, rowH = o.rowHeight || 44, padL = 8, padR = 76, labelW = o.labelWidth || 190, padT = 8;
-  var H = padT + rows.length * rowH + 14;
   var hi = Math.max.apply(null, rows.map(function (r) { return r[1]; })) * 1.08;
-  var bars = rows.map(function (r, i) {
-    var y = padT + i * rowH, bw = (r[1] / hi) * (W - padL - labelW - padR);
-    return '<text x="' + padL + '" y="' + (y + 21) + '" font-size="13" fill="' + CHART_TEXT + '">' + esc(r[0]) + '</text>' +
-      '<rect x="' + (padL + labelW) + '" y="' + (y + 6) + '" width="' + bw.toFixed(1) + '" height="22" fill="' + (o.color || CHART_RED) + '"/>' +
-      '<text x="' + (padL + labelW + bw + 8).toFixed(1) + '" y="' + (y + 22) + '" font-size="13" font-weight="700" fill="' + CHART_TEXT + '">' + fmtNum(r[1], o.decimals) + '</text>';
+  var body = rows.map(function (r) {
+    var pct = (r[1] / hi * 100).toFixed(1);
+    return '<div class="hbar-row"><span class="hbar-label">' + esc(r[0]) + '</span>' +
+      '<span class="hbar-track"><span class="hbar-fill" style="width:' + pct + '%"></span></span>' +
+      '<span class="hbar-value">' + fmtNum(r[1], o.decimals) + '</span></div>';
   }).join("");
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Bar chart" style="width:100%;height:auto;display:block">' + bars + '</svg>';
+  return '<div class="hbar" role="img" aria-label="' + esc(o.label || "Bar chart") + '">' + body + '</div>';
 }
 
 // A chart with a Chart | Table switch. The two renderings are kept in the
@@ -154,10 +175,13 @@ function chartPanel(id, chartHtml, tableHtml, title) {
 }
 
 // A plain table of an indicator's observations, for the chart/table switch.
+// The first column names what the rows are: a year for a time series, a
+// dwelling type for a categorical series.
 function valueTable(entry) {
+  var firstCol = entry.categories ? "Dwelling type" : "Year";
   var rows = entry.values.map(function (p) {
-    return '<tr><th scope="row">' + esc(p[0]) + '</th><td>' + fmtValue(p[1]) + '</td></tr>';
+    return '<tr><th scope="row">' + esc(p[0]) + '</th><td>' + fmtValue(p[1], entry.decimals) + '</td></tr>';
   }).join("");
   return '<table class="values"><caption>' + esc(entry.name) + ' — ' + esc(entry.unit) + '</caption>' +
-    '<thead><tr><th scope="col">Period</th><th scope="col">Value</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    '<thead><tr><th scope="col">' + firstCol + '</th><th scope="col">Value</th></tr></thead><tbody>' + rows + '</tbody></table>';
 }
